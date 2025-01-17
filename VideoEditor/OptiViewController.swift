@@ -31,6 +31,8 @@ class OptiViewController: UIViewController {
     var playerController = AVPlayerViewController()
     var activeField: UITextField?
     
+    var speechRecognizer = OptiSpeechRecognizer()
+    
     var isMergeClicked = false
     var isSliderEnd = true
     
@@ -109,6 +111,7 @@ class OptiViewController: UIViewController {
     //TextView
     @IBOutlet weak var vw_AddTextView: UIView!
     @IBOutlet weak var txtfld_Addtxt: UITextField!
+    @IBOutlet weak var btnSpeechRec: UIButton!
     @IBOutlet weak var textPosition_Collvw: UICollectionView!
     
     //Video Crop View
@@ -150,6 +153,7 @@ class OptiViewController: UIViewController {
         self.sticker_Vw.isHidden = true
         self.transition_Vw.isHidden = true
         self.vw_AddTextView.isHidden = true
+        self.btnSpeechRec.isHidden = true
         self.merge_Musicbacvw.isHidden = true
         self.progressvw_back.isHidden = true
         self.progress_Vw.progress = 0.0
@@ -159,6 +163,8 @@ class OptiViewController: UIViewController {
         }
         self.setupAudioCropSliderView()
 
+        speechRecognizer.delegate = self
+        
         NotificationCenter.default.addObserver(self, selector: #selector(OptiViewController.keyboardWillShow), name: UIResponder.keyboardWillShowNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(OptiViewController.keyboardWillHide), name: UIResponder.keyboardWillHideNotification, object: nil)
 
@@ -560,7 +566,11 @@ class OptiViewController: UIViewController {
                         self.progressvw_back.isHidden = false
                         self.progress_Vw.progress = 0.1
                         self.setTimer()
-                        OptiVideoEditor().addStickerorTexttoVideo(videoUrl: videourl, watermarkText: txtfld_Addtxt.text ?? "", imageName: "", position: selectedTextPosition, success: { (url) in
+                        OptiVideoEditor().addStickerorTexttoVideo(videoUrl: videourl,
+                                                                  watermarkText: txtfld_Addtxt.text ?? "",
+                                                                  imageName: "",
+                                                                  position: selectedTextPosition,
+                                                                  success: { (url) in
                             DispatchQueue.main.async {
                                 let saveBarBtnItm = UIBarButtonItem(title: "Save", style: .done, target: self, action: #selector(self.saveActionforEditedVideo))
                                 self.navigationItem.rightBarButtonItem  = saveBarBtnItm
@@ -754,6 +764,14 @@ class OptiViewController: UIViewController {
                 }
             }
         }
+    }
+    
+    @IBAction func btn_speechRecStartAction(_ sender: UIButton) {
+        self.speechRecognizer.startTranscription()
+    }
+    
+    @IBAction func btn_speechRecStopAction(_ sender: UIButton) {
+        self.speechRecognizer.stopTranscription()
     }
 }
 
@@ -1114,6 +1132,9 @@ extension OptiViewController : UICollectionViewDelegate {
                         self.vw_AddTextView.isHidden = false
                         self.merge_Musicbacvw.isHidden = true
                         self.textPosition_Collvw.reloadData()
+                        
+                        self.speechRecognizer.requestSpeechAuthorization()
+                        
                         UIView.animate(withDuration: 0.5, delay: 0, options: [.curveEaseIn],animations: {
                             self.functionViewTopConstraint.constant = self.menu_Vw.frame.height * -1
                             self.vw_function.layoutIfNeeded()
@@ -1374,5 +1395,20 @@ extension OptiViewController {
             self.videoFrames_Vw.addSubview(imageButton)
         }
         
+    }
+}
+
+extension OptiViewController: OptiSpeechRecognizerDelegate {
+    
+    func didRecieveAuthorizationStatus(_ status: OptiSpeechRecognizerStatus) {
+        DispatchQueue.main.async { [weak self] in
+            self?.btnSpeechRec.isHidden = status != .enabled
+        }
+    }
+    
+    func didRecognizeText(text: String) {
+        DispatchQueue.main.async { [weak self] in
+            self?.txtfld_Addtxt.text = text
+        }
     }
 }
